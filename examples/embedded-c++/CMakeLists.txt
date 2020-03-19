@@ -6,5 +6,5 @@ set(CMAKE_CXX_STANDARD 11)
 include_directories(../../src/include)
 link_directories(../../build/release/src)
 
-add_executable(example main.cpp)
+add_executable(example main_test.cpp)
 target_link_libraries(example duckdb)

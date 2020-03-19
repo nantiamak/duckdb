@@ -26,23 +26,17 @@ extern nullmask_t ZERO_MASK;
   represents a chunk of values of a single type. A vector can either (1) own its
   own data (in which case own_data is set to true), or (2) hold only a reference
   to a set of data (e.g. the base columns or another vector).
-
   The execution engine operates on vectors mostly through the the set of
   available VectorOperations.
-
   A vector also has an optional selection vector property. When this property is
   set, the selection vector must be used to access the data as the data pointer
   itself might hold irrelevant empty entries. A simple loop for this would be as
   follows:
-
   for(auto i = 0; i < count; i++) {
     sum += data[sel_vector[i]];
   }
-
   Selection vectors are used for two purposes:
-
   (1) Filtering data without requiring moving and copying data around
-
   (2) Ordering data
 */
 class Vector {
@@ -145,4 +139,6 @@ public:
 	//! If the vector owns data, this is the unique_ptr holds the actual data.
 	unique_ptr<data_t[]> owned_data;
 };
+
 } // namespace duckdb
+
