@@ -1,5 +1,369 @@
 #include "duckdb/execution/operator/join/physical_symmetric_hash_join.hpp"
 
+#include "duckdb/common/vector_operations/vector_operations.hpp"
+#include "duckdb/execution/expression_executor.hpp"
+#include<iostream>
+using namespace duckdb;
+using namespace std;
+
+class PhysicalSymmetricHashJoinState : public PhysicalComparisonJoinState {
+public:
+  PhysicalSymmetricHashJoinState(PhysicalOperator *left, PhysicalOperator *right, vector<JoinCondition> &conditions)
+      : PhysicalComparisonJoinState(left, right, conditions), initialized(false) {
+  }
+
+  bool initialized;
+  DataChunk join_keys;
+  unique_ptr<JoinHashTable::ScanStructure> scan_structure;
+};
+
+PhysicalSymmetricHashJoin::PhysicalSymmetricHashJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left,
+                                   unique_ptr<PhysicalOperator> right, vector<JoinCondition> cond, JoinType join_type)
+    : PhysicalComparisonJoin(op, PhysicalOperatorType::HASH_JOIN, move(cond), join_type) {
+  hash_table = make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
+  hash_tables[0]= make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
+  hash_tables[1]= make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
+
+  children.push_back(move(left));
+  children.push_back(move(right));
+}
+
+void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
+
+  int child=1;
+  auto state = reinterpret_cast<PhysicalHashJoinState *>(state_);
+  cout << (state->child_state.get()!=nullptr) << "\n";
+  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
+
+
+  state->child_chunk.Print();
+
+  do{
+  cout << "Building hash table\n";
+  auto child_state = children[child]->GetOperatorState();
+  auto types = children[child]->GetTypes();
+
+ // DataChunk left_chunk;
+ // left_chunk.Initialize(types);
+
+  state->join_keys.Initialize(hash_tables[child]->condition_types);
+  //while (true) {
+    // get the child chunk
+
+    if (state->child_chunk.size() == 0) {
+      break;
+    }
+    // resolve the join keys for the right chunk
+    state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+
+    // build the HT
+
+    hash_tables[child]->Build(state->join_keys, state->child_chunk);
+
+    children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
+    state->child_chunk.Print();
+
+  //}
+
+  if (hash_tables[child]->size() == 0 &&
+      (hash_tables[child]->join_type == JoinType::INNER || hash_tables[child]->join_type == JoinType::SEMI)) {
+    // empty hash table with INNER or SEMI join means empty result set
+
+    return;
+  }
+
+  cout << hash_tables[child]->size() << "\n";
+  state->initialized = true;
+
+
+  if (state->child_chunk.size() == 0) {
+      cout << "Inside if\n";
+    //  return;
+  }
+
+
+    // fetch the chunk from the left side
+
+    children[child]->GetChunk(context, state->child_chunk, child_state.get());
+    state->child_chunk.Print();
+    if (state->child_chunk.size() == 0) {
+      return;
+    }
+    // remove any selection vectors
+    state->child_chunk.Flatten();
+    if (hash_tables[1-child]->size() == 0) {
+      // empty hash table, special case
+      if (hash_tables[1-child]->join_type == JoinType::ANTI) {
+        // anti join with empty hash table, NOP join
+        // return the input
+        assert(chunk.column_count == state->child_chunk.column_count);
+        for (index_t i = 0; i < chunk.column_count; i++) {
+          chunk.data[i].Reference(state->child_chunk.data[i]);
+        }
+        return;
+      } else if (hash_tables[1-child]->join_type == JoinType::MARK) {
+        // MARK join with empty hash table
+        assert(hash_tables[1-child]->join_type == JoinType::MARK);
+        assert(chunk.column_count == state->child_chunk.column_count + 1);
+        auto &result_vector = chunk.data[state->child_chunk.column_count];
+        assert(result_vector.type == TypeId::BOOLEAN);
+        result_vector.count = state->child_chunk.size();
+        // for every data vector, we just reference the child chunk
+        for (index_t i = 0; i < state->child_chunk.column_count; i++) {
+          chunk.data[i].Reference(state->child_chunk.data[i]);
+        }
+        // for the MARK vector:
+        // if the HT has no NULL values (i.e. empty result set), return a vector that has false for every input
+        // entry if the HT has NULL values (i.e. result set had values, but all were NULL), return a vector that
+        // has NULL for every input entry
+        if (!hash_tables[1-child]->has_null) {
+          auto bool_result = (bool *)result_vector.data;
+          for (index_t i = 0; i < result_vector.count; i++) {
+            bool_result[i] = false;
+          }
+        } else {
+          result_vector.nullmask.set();
+        }
+        return;
+      }
+    }
+    // resolve the join keys for the left chunk
+    state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+
+    // perform the actual probe
+    state->scan_structure = hash_tables[1-child]->Probe(state->join_keys);
+    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
+
+    child=1-child;
+
+  } while (chunk.size() == 0);
+
+  //if (!state->initialized) {
+    // build the HT
+ /* cout << "Building hash table\n";
+  auto left_state = children[0]->GetOperatorState();
+  auto types = children[0]->GetTypes();
+
+    DataChunk left_chunk;
+    left_chunk.Initialize(types);
+
+    state->join_keys.Initialize(hash_tables[0]->condition_types);
+    while (true) {
+      // get the child chunk
+      children[0]->GetChunk(context, left_chunk, left_state.get());
+      if (left_chunk.size() == 0) {
+        break;
+      }
+      // resolve the join keys for the right chunk
+      state->lhs_executor.Execute(left_chunk, state->join_keys);
+
+      // build the HT
+
+      hash_tables[0]->Build(state->join_keys, left_chunk);
+
+    }
+
+    if (hash_tables[0]->size() == 0 &&
+        (hash_tables[0]->join_type == JoinType::INNER || hash_tables[0]->join_type == JoinType::SEMI)) {
+      // empty hash table with INNER or SEMI join means empty result set
+      return;
+    }
+
+    state->initialized = true;
+
+  //}
+
+  if (state->child_chunk.size() > 0 && state->scan_structure) {
+    // still have elements remaining from the previous probe (i.e. we got
+    // >1024 elements in the previous probe)
+    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
+
+    if (chunk.size() > 0) {
+      return;
+    }
+    state->scan_structure = nullptr;
+  }*/
+
+
+
+  cout << "Get chunk internal\n";
+ /*
+
+
+
+  // probe the HT
+ // children[0]->GetChunk(context, state->child_chunk, children[0]->GetOperatorState().get());
+  //  state->child_chunk.Print();
+  do {
+    // fetch the chunk from the left side
+    state->child_state =
+    children[0]->GetChunk(context, state->child_chunk, state->child_state.get());
+    state->child_chunk.Print();
+    if (state->child_chunk.size() == 0) {
+      break;
+    }
+    // remove any selection vectors
+    state->child_chunk.Flatten();
+    if (hash_tables[1]->size() == 0) {
+      // empty hash table, special case
+      if (hash_tables[1]->join_type == JoinType::ANTI) {
+        // anti join with empty hash table, NOP join
+        // return the input
+        assert(chunk.column_count == state->child_chunk.column_count);
+        for (index_t i = 0; i < chunk.column_count; i++) {
+          chunk.data[i].Reference(state->child_chunk.data[i]);
+        }
+        return;
+      } else if (hash_tables[1]->join_type == JoinType::MARK) {
+        // MARK join with empty hash table
+        assert(hash_tables[1]->join_type == JoinType::MARK);
+        assert(chunk.column_count == state->child_chunk.column_count + 1);
+        auto &result_vector = chunk.data[state->child_chunk.column_count];
+        assert(result_vector.type == TypeId::BOOLEAN);
+        result_vector.count = state->child_chunk.size();
+        // for every data vector, we just reference the child chunk
+        for (index_t i = 0; i < state->child_chunk.column_count; i++) {
+          chunk.data[i].Reference(state->child_chunk.data[i]);
+        }
+        // for the MARK vector:
+        // if the HT has no NULL values (i.e. empty result set), return a vector that has false for every input
+        // entry if the HT has NULL values (i.e. result set had values, but all were NULL), return a vector that
+        // has NULL for every input entry
+        if (!hash_tables[1]->has_null) {
+          auto bool_result = (bool *)result_vector.data;
+          for (index_t i = 0; i < result_vector.count; i++) {
+            bool_result[i] = false;
+          }
+        } else {
+          result_vector.nullmask.set();
+        }
+        return;
+      }
+    }
+    // resolve the join keys for the left chunk
+    state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+
+    // perform the actual probe
+    state->scan_structure = hash_tables[1]->Probe(state->join_keys);
+    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
+
+  } while (chunk.size() == 0);
+
+ // if (!state->initialized) {
+    // build the HT
+   /* cout << "Building hash table\n";
+    auto right_state = children[1]->GetOperatorState();
+    types = children[1]->GetTypes();
+
+    DataChunk right_chunk;
+    right_chunk.Initialize(types);
+
+    state->join_keys.Initialize(hash_tables[1]->condition_types);
+    while (true) {
+      // get the child chunk
+      children[1]->GetChunk(context, right_chunk, right_state.get());
+     //right_chunk.Print();
+      if (right_chunk.size() == 0) {
+        break;
+      }
+      // resolve the join keys for the right chunk
+      state->rhs_executor.Execute(right_chunk, state->join_keys);
+
+      // build the HT
+
+      hash_tables[1]->Build(state->join_keys, right_chunk);
+
+    }
+
+    if (hash_tables[1]->size() == 0 &&
+        (hash_tables[1]->join_type == JoinType::INNER || hash_tables[1]->join_type == JoinType::SEMI)) {
+      // empty hash table with INNER or SEMI join means empty result set
+      return;
+    }
+
+    state->initialized = true;
+
+  //}
+
+  if (state->child_chunk.size() > 0 && state->scan_structure) {
+    // still have elements remaining from the previous probe (i.e. we got
+    // >1024 elements in the previous probe)
+    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
+
+    if (chunk.size() > 0) {
+      return;
+    }
+    state->scan_structure = nullptr;
+  }
+
+
+  cout << state->child_state.get() << "\n";*/
+
+
+ /* do {
+    // fetch the chunk from the left side
+    cout << "Probing 2\n";
+    children[1]->GetChunk(context, state->child_chunk, state->child_state.get());
+    state->child_chunk.Print();
+    if (state->child_chunk.size() == 0) {
+      return;
+    }
+    // remove any selection vectors
+    state->child_chunk.Flatten();
+    if (hash_tables[0]->size() == 0) {
+      // empty hash table, special case
+      if (hash_tables[0]->join_type == JoinType::ANTI) {
+        // anti join with empty hash table, NOP join
+        // return the input
+        assert(chunk.column_count == state->child_chunk.column_count);
+        for (index_t i = 0; i < chunk.column_count; i++) {
+          chunk.data[i].Reference(state->child_chunk.data[i]);
+        }
+        return;
+      } else if (hash_tables[0]->join_type == JoinType::MARK) {
+        // MARK join with empty hash table
+        assert(hash_tables[0]->join_type == JoinType::MARK);
+        assert(chunk.column_count == state->child_chunk.column_count + 1);
+        auto &result_vector = chunk.data[state->child_chunk.column_count];
+        assert(result_vector.type == TypeId::BOOLEAN);
+        result_vector.count = state->child_chunk.size();
+        // for every data vector, we just reference the child chunk
+        for (index_t i = 0; i < state->child_chunk.column_count; i++) {
+          chunk.data[i].Reference(state->child_chunk.data[i]);
+        }
+        // for the MARK vector:
+        // if the HT has no NULL values (i.e. empty result set), return a vector that has false for every input
+        // entry if the HT has NULL values (i.e. result set had values, but all were NULL), return a vector that
+        // has NULL for every input entry
+        if (!hash_tables[0]->has_null) {
+          auto bool_result = (bool *)result_vector.data;
+          for (index_t i = 0; i < result_vector.count; i++) {
+            bool_result[i] = false;
+          }
+        } else {
+          result_vector.nullmask.set();
+        }
+        return;
+      }
+    }
+    // resolve the join keys for the left chunk
+    state->rhs_executor.Execute(state->child_chunk, state->join_keys);
+
+    // perform the actual probe
+    state->scan_structure = hash_tables[0]->Probe(state->join_keys);
+    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
+    children[1]->GetChunk(context, state->child_chunk, state->child_state.get());
+    state->child_chunk.Print();
+  } while (chunk.size() == 0);*/
+
+}
+
+unique_ptr<PhysicalOperatorState> PhysicalSymmetricHashJoin::GetOperatorState() {
+  return make_unique<PhysicalHashJoinState>(children[0].get(), children[1].get(), conditions);
+}
+
+/*#include "duckdb/execution/operator/join/physical_symmetric_hash_join.hpp"
+
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/main/database.hpp"
 #include "duckdb/storage/storage_manager.hpp"
@@ -87,7 +451,7 @@ void PhysicalSymmetricHashJoin::BuildHashTable(ClientContext &context, DataChunk
 				// empty hash table with INNER or SEMI join means empty result set
 				return;
 		}
-		
+
 		hash_table_left->Finalize();
 
   } else if (child == 1){
@@ -150,7 +514,7 @@ void PhysicalSymmetricHashJoin::ProbeHashTable(ClientContext &context, DataChunk
     do {
 		// fetch the chunk from the right side
 		  children[1]->GetChunk(context, state->child_chunk, state->child_state.get());
-  
+
 		  if (state->child_chunk.size() == 0) {
         return;
 		  }
@@ -312,7 +676,7 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 		// empty hash table with INNER or SEMI join means empty result set
     return;
 	}
-  
+
 
 	auto left_state = children[0]->GetOperatorState();
   auto left_types = children[0]->GetTypes();
@@ -328,10 +692,10 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
   	return;
   }
 
- 	
+
   ProbeHashTable(context, chunk, state, 1);
   ProbeHashTable(context, chunk, state, 0);
-  
+
 
 
 
@@ -396,4 +760,4 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 		return;
 #endif
 	//} while (true);*/
-}
+//}
