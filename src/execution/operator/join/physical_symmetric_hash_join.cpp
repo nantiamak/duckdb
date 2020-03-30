@@ -21,7 +21,7 @@ PhysicalSymmetricHashJoin::PhysicalSymmetricHashJoin(LogicalOperator &op, unique
                                    unique_ptr<PhysicalOperator> right, vector<JoinCondition> cond, JoinType join_type)
     : PhysicalComparisonJoin(op, PhysicalOperatorType::HASH_JOIN, move(cond), join_type) {
   hash_table = make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
-  hash_tables[0]= make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
+  hash_tables[0]= make_unique<JoinHashTable>(conditions, left->GetTypes(), join_type);
   hash_tables[1]= make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
 
   children.push_back(move(left));
@@ -30,19 +30,35 @@ PhysicalSymmetricHashJoin::PhysicalSymmetricHashJoin(LogicalOperator &op, unique
 
 void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
 
-  int child=1;
+  int child=0;
   auto state = reinterpret_cast<PhysicalHashJoinState *>(state_);
-  cout << (state->child_state.get()!=nullptr) << "\n";
-  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
+  //auto child_state = children[child]->GetOperatorState();
+  //auto types = children[child]->GetTypes();
+//  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
 
 
-  state->child_chunk.Print();
+
+
+
+
+//  state->child_chunk.Print();
+  cout << "Get Chunk internal\n";
+
 
   do{
-  cout << "Building hash table\n";
+  cout << "Building hash table " << child << "\n";
+
   auto child_state = children[child]->GetOperatorState();
   auto types = children[child]->GetTypes();
 
+
+  if(child==0){
+    children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
+    state->child_chunk.Print();
+  } else {
+    children[child]->GetChunk(context, state->child_chunk, child_state.get());
+    state->child_chunk.Print();
+  }
  // DataChunk left_chunk;
  // left_chunk.Initialize(types);
 
@@ -51,17 +67,24 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
     // get the child chunk
 
     if (state->child_chunk.size() == 0) {
-      break;
+      return;
     }
     // resolve the join keys for the right chunk
-    state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+    //state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+
+  //  if(child==0){
+      state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+  //  } else if(child==1) {
+    //  state->rhs_executor.Execute(state->child_chunk, state->join_keys);
+  //  }
 
     // build the HT
 
     hash_tables[child]->Build(state->join_keys, state->child_chunk);
 
-    children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
-    state->child_chunk.Print();
+  //  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
+  //  state->child_state.get();
+    //state->child_chunk.Print();
 
   //}
 
@@ -72,7 +95,7 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
     return;
   }
 
-  cout << hash_tables[child]->size() << "\n";
+  //cout << hash_tables[child]->size() << "\n";
   state->initialized = true;
 
 
@@ -84,11 +107,11 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 
     // fetch the chunk from the left side
 
-    children[child]->GetChunk(context, state->child_chunk, child_state.get());
+  //  children[child]->GetChunk(context, state->child_chunk, child_state.get());
     state->child_chunk.Print();
-    if (state->child_chunk.size() == 0) {
+  /*  if (state->child_chunk.size() == 0) {
       return;
-    }
+    }*/
     // remove any selection vectors
     state->child_chunk.Flatten();
     if (hash_tables[1-child]->size() == 0) {
@@ -102,6 +125,7 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
         }
         return;
       } else if (hash_tables[1-child]->join_type == JoinType::MARK) {
+
         // MARK join with empty hash table
         assert(hash_tables[1-child]->join_type == JoinType::MARK);
         assert(chunk.column_count == state->child_chunk.column_count + 1);
@@ -128,13 +152,25 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
       }
     }
     // resolve the join keys for the left chunk
-    state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+  //  if(child==0){
+      state->lhs_executor.Execute(state->child_chunk, state->join_keys);
+    //  state->join_keys.Print();
+  /*  } else if(child==1) {
+      cout << "child 1\n";
+      state->rhs_executor.Execute(state->child_chunk, state->join_keys);
+      state->join_keys.Print();
+    }*/
 
     // perform the actual probe
     state->scan_structure = hash_tables[1-child]->Probe(state->join_keys);
     state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
 
+    if(hash_tables[1-child]->join_type == JoinType::INNER){
+      cout << "Inner join\n";
+    }
+
     child=1-child;
+  //  chunk.Print();
 
   } while (chunk.size() == 0);
 
@@ -186,7 +222,7 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 
 
 
-  cout << "Get chunk internal\n";
+//  cout << "Get chunk internal\n";
  /*
 
 

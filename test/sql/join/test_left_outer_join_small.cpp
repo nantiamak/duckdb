@@ -13,14 +13,23 @@ TEST_CASE("Test LEFT OUTER JOIN SMALL", "[join]") {
 	//con.EnableQueryVerification();
 
 	REQUIRE_NO_FAIL(con.Query("CREATE TABLE integers(i INTEGER, j INTEGER)"));
-	REQUIRE_NO_FAIL(con.Query("INSERT INTO integers VALUES (1, 2), (2, 3), (3, 4)"));
+	REQUIRE_NO_FAIL(con.Query("INSERT INTO integers VALUES (5, 2), (6, 3), (3, 4)"));
 	REQUIRE_NO_FAIL(con.Query("CREATE TABLE integers2(k INTEGER, l INTEGER)"));
 	REQUIRE_NO_FAIL(con.Query("INSERT INTO integers2 VALUES (1, 10), (2, 20)"));
 
-	result = con.Query("SELECT * FROM integers INNER JOIN integers2 ON "
+	/*result = con.Query("SELECT * FROM integers INNER JOIN integers2 ON "
 	                   "integers.i=integers2.k");
 	REQUIRE(CHECK_COLUMN(result, 0, {1, 2}));
-	REQUIRE(CHECK_COLUMN(result, 1, {2, 3}));
+	REQUIRE(CHECK_COLUMN(result, 1, {10, 20}));
 	REQUIRE(CHECK_COLUMN(result, 2, {1, 2}));
-	REQUIRE(CHECK_COLUMN(result, 3, {10, 20}));
+	REQUIRE(CHECK_COLUMN(result, 3, {2, 3}));*/
+
+	result = con.Query("SELECT * FROM integers INNER JOIN integers2 ON "
+	                   "integers.i=integers2.k");
+	REQUIRE(CHECK_COLUMN(result, 0, {}));
+	REQUIRE(CHECK_COLUMN(result, 1, {}));
+	REQUIRE(CHECK_COLUMN(result, 2, {}));
+	REQUIRE(CHECK_COLUMN(result, 3, {}));
+
+
 }
