@@ -30,35 +30,41 @@ PhysicalSymmetricHashJoin::PhysicalSymmetricHashJoin(LogicalOperator &op, unique
 
 void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
 
-  int child=0;
+  int child=1;
   auto state = reinterpret_cast<PhysicalHashJoinState *>(state_);
-  //auto child_state = children[child]->GetOperatorState();
-  //auto types = children[child]->GetTypes();
-//  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
 
-
-
-
-
-
-//  state->child_chunk.Print();
   cout << "Get Chunk internal\n";
 
+  if (state->child_chunk.size() > 0 && state->scan_structure) {
+    cout << "Remaining chunk\n";
+    state->child_chunk.Print();
+    // still have elements remaining from the previous probe (i.e. we got
+    // >1024 elements in the previous probe)
+    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
 
-  do{
-  cout << "Building hash table " << child << "\n";
+    if (chunk.size() > 0) {
+    //  return;
+    }
+    state->scan_structure = nullptr;
+  }
 
   auto child_state = children[child]->GetOperatorState();
   auto types = children[child]->GetTypes();
-
-
-  if(child==0){
+  if(child==1){
     children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
     state->child_chunk.Print();
   } else {
     children[child]->GetChunk(context, state->child_chunk, child_state.get());
     state->child_chunk.Print();
   }
+
+
+
+  while(state->child_chunk.size()!=0) {
+
+
+  cout << "Building hash table " << child << "\n";
+
  // DataChunk left_chunk;
  // left_chunk.Initialize(types);
 
@@ -99,11 +105,11 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
   state->initialized = true;
 
 
+
   if (state->child_chunk.size() == 0) {
       cout << "Inside if\n";
-    //  return;
+      return;
   }
-
 
     // fetch the chunk from the left side
 
@@ -170,9 +176,26 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
     }
 
     child=1-child;
-  //  chunk.Print();
 
-  } while (chunk.size() == 0);
+
+    cout << "End of while: " << state->child_chunk.size() << "\n";
+
+    child_state = children[child]->GetOperatorState();
+    types = children[child]->GetTypes();
+    if(child==1){
+      children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
+      state->child_chunk.Print();
+    } else {
+      children[child]->GetChunk(context, state->child_chunk, child_state.get());
+      state->child_chunk.Print();
+    }
+
+    chunk.Print();
+
+  //  chunk.Print();
+}
+
+
 
   //if (!state->initialized) {
     // build the HT

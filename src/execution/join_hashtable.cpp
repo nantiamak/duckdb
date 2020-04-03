@@ -4,6 +4,7 @@
 #include "duckdb/common/types/null_value.hpp"
 #include "duckdb/common/types/static_vector.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
+#include<iostream>
 
 using namespace duckdb;
 using namespace std;
@@ -518,6 +519,7 @@ index_t ScanStructure::ScanInnerJoin(DataChunk &keys, DataChunk &left, DataChunk
 void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &result) {
 	assert(result.column_count == left.column_count + ht.build_types.size());
 	if (pointers.count == 0) {
+		cout << "No pointers\n";
 		// no pointers left to chase
 		return;
 	}
@@ -716,13 +718,19 @@ void ScanStructure::NextLeftJoin(DataChunk &keys, DataChunk &left, DataChunk &re
 	// a LEFT OUTER JOIN is identical to an INNER JOIN except all tuples that do
 	// not have a match must return at least one tuple (with the right side set
 	// to NULL in every column)
+cout << "Inside Left join\n";
+
 	NextInnerJoin(keys, left, result);
+	result.Print();
 	if (result.size() == 0) {
+		cout << "Empty Left join\n";
+		left.Print();
 		// no entries left from the normal join
 		// fill in the result of the remaining left tuples
 		// together with NULL values on the right-hand side
 		index_t remaining_count = 0;
 		for (index_t i = 0; i < left.size(); i++) {
+			cout << "Printing matches: " << found_match[i] << "\n";
 			if (!found_match[i]) {
 				result.owned_sel_vector[remaining_count++] = i;
 			}
@@ -733,16 +741,21 @@ void ScanStructure::NextLeftJoin(DataChunk &keys, DataChunk &left, DataChunk &re
 			result.sel_vector = result.owned_sel_vector;
 			index_t i = 0;
 			for (; i < left.column_count; i++) {
+				cout << "Left side\n";
 				result.data[i].Reference(left.data[i]);
 				result.data[i].sel_vector = result.sel_vector;
 				result.data[i].count = remaining_count;
 			}
+		//	result.Print();
 			// now set the right side to NULL
 			for (; i < result.column_count; i++) {
+				cout << "Right side\n";
 				result.data[i].nullmask.set();
 				result.data[i].sel_vector = result.sel_vector;
 				result.data[i].count = remaining_count;
 			}
+			cout << "End of if\n";
+			result.Print();
 		}
 		finished = true;
 	}
