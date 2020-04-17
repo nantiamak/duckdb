@@ -29,6 +29,7 @@ PhysicalHashJoin::PhysicalHashJoin(LogicalOperator &op, unique_ptr<PhysicalOpera
 
 void PhysicalHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
 	auto state = reinterpret_cast<PhysicalHashJoinState *>(state_);
+	cout << "Chunk internal\n";
 	if (!state->initialized) {
 		// build the HT
 		auto right_state = children[1]->GetOperatorState();
@@ -59,6 +60,7 @@ void PhysicalHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk
 
 		state->initialized = true;
 	}
+	cout << "Hashtable size " << hash_table->size() << "\n";
 	if (state->child_chunk.size() > 0 && state->scan_structure) {
 		// still have elements remaining from the previous probe (i.e. we got
 		// >1024 elements in the previous probe)
@@ -121,6 +123,7 @@ void PhysicalHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk
 		// perform the actual probe
 		state->scan_structure = hash_table->Probe(state->join_keys);
 		state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
+	//	chunk.Print();
 	} while (chunk.size() == 0);
 }
 

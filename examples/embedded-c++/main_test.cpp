@@ -6,17 +6,18 @@ int main() {
 	DuckDB db(nullptr);
 	Connection con(db);
 
-	/*con.Query("CREATE TABLE nation(n_nationkey INTEGER, n_name VARCHAR, n_regionkey INTEGER, n_comment VARCHAR)");
+	con.Query("CREATE TABLE nation(n_nationkey INTEGER, n_name VARCHAR, n_regionkey INTEGER, n_comment VARCHAR)");
 	con.Query("CREATE TABLE customer(c_custkey INTEGER, c_name VARCHAR, c_address VARCHAR, c_nationkey INTEGER, c_phone VARCHAR, c_acctbal DOUBLE, c_mktsegment VARCHAR, c_comment VARCHAR)");
 	con.Query("COPY customer FROM '../../duckdb_benchmark_data/tpch_customer.csv'");
 	con.Query("COPY nation FROM '../../duckdb_benchmark_data/tpch_nation.csv'");
 
-	auto result=con.Query("select c_name, n_name from nation, customer where c_nationkey=n_nationkey and c_custkey<25");
-	result->Print();*/
+	auto result=con.Query("copy (select c_name, n_name from nation, customer where c_nationkey=n_nationkey) to '/Users/Nantia/Desktop/result.txt'");
+	result->Print();
+	//auto result = con.Query("select count(*) from customer");
+	//result->Print();
 
 
-
-	con.Query("CREATE TABLE integers(i INTEGER, j INTEGER)");
+	/*con.Query("CREATE TABLE integers(i INTEGER, j INTEGER)");
 	con.Query("INSERT INTO integers VALUES (1, 2), (2, 3), (3, 4), (5,6)");
 	con.Query("CREATE TABLE integers2(k INTEGER, l INTEGER)");
 	con.Query("INSERT INTO integers2 VALUES (1, 10), (2, 20), (3,30)");
@@ -24,7 +25,7 @@ int main() {
 	auto result = con.Query("SELECT * FROM integers INNER JOIN integers2 ON "
 	                   "integers.i=integers2.k and l<30");
 
-	result->Print();
+	result->Print();*/
 
 	/*auto result = con.Query("SELECT * FROM integers LEFT OUTER JOIN integers2 ON "
 	                   "integers.i=integers2.k ORDER BY i");

@@ -524,6 +524,7 @@ void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &r
 	}
 
 	index_t result_count = ScanInnerJoin(keys, left, result);
+	//cout << "Matches found\n";
 	if (result_count > 0) {
 		// matches were found
 		// construct the result
@@ -544,7 +545,7 @@ void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &r
 			vector.sel_vector = result.sel_vector;
 			vector.count = result_count;
 			VectorOperations::Gather::Set(build_pointer_vector, vector);
-			cout << result_count << "\n";
+			//cout << result_count << "\n";
 			VectorOperations::AddInPlace(build_pointer_vector, GetTypeIdSize(ht.build_types[i]));
 		}
 
