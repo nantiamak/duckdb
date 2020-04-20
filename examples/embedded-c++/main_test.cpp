@@ -11,7 +11,7 @@ int main() {
 	con.Query("COPY customer FROM '../../duckdb_benchmark_data/tpch_customer.csv'");
 	con.Query("COPY nation FROM '../../duckdb_benchmark_data/tpch_nation.csv'");
 
-	auto result=con.Query("copy (select c_name, n_name from nation, customer where c_nationkey=n_nationkey) to '/Users/Nantia/Desktop/result.txt'");
+	auto result=con.Query("copy (select c_name, n_name from nation, customer where c_nationkey=32) to '/Users/Nantia/Desktop/result.txt'");
 	result->Print();
 	//auto result = con.Query("select count(*) from customer");
 	//result->Print();
