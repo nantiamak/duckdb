@@ -34,124 +34,76 @@ PhysicalSymmetricHashJoin::PhysicalSymmetricHashJoin(LogicalOperator &op, unique
 
 void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
 
- int child=1;
- auto state = reinterpret_cast<PhysicalSymmetricHashJoinState *>(state_);
- //auto child_state = children[child]->GetOperatorState();
- //auto types = children[child]->GetTypes();
-//  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
+  int child=1;
+  auto state = reinterpret_cast<PhysicalSymmetricHashJoinState *>(state_);
 
-if (state->child_chunk.size() > 0 && state->scan_structure) {
+  if (state->child_chunks[child].size() > 0 && state->scan_structure) {
   // still have elements remaining from the previous probe (i.e. we got
   // >1024 elements in the previous probe)
-  state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
+    state->scan_structure->Next(state->join_keys, state->child_chunks[child], chunk);
 
-  if (chunk.size() > 0) {
-    return;
+    if (chunk.size() > 0) {
+      return;
+    }
+    state->scan_structure = nullptr;
   }
-  state->scan_structure = nullptr;
-}
-
-chunk.Print();
-
-/*if(child==0 && chunk.size()!=0){
-for (index_t i = 0; i < chunk.column_count/2; i++) {
-  cout << ((state->child_chunk.column_count-1)-i) << "\n";
-  DataChunk temp;
-  auto types = children[1]->GetTypes();
-  temp.Initialize(types);
-  temp.data[i].data = chunk.data[((chunk.column_count/2)+i)].data;
-  chunk.data[((chunk.column_count/2)+i)].Reference(chunk.data[i]);
-  chunk.data[i].data=temp.data[i].data;
-}
-}*/
 
 
-
-//  state->child_chunk.Print();
- cout << "Get Chunk internal\n";
- state->child_chunks[0].Initialize(children[0]->GetTypes());
- state->child_chunks[1].Initialize(children[1]->GetTypes());
-
-
- do{
- cout << "Building hash table " << child << "\n";
-
- //auto child_state = children[child]->GetOperatorState();
- //auto types = children[child]->GetTypes();
+  cout << "Get Chunk internal\n";
+  state->child_chunks[0].Initialize(children[0]->GetTypes());
+  state->child_chunks[1].Initialize(children[1]->GetTypes());
+  cout << hash_tables[0]->size() << "\n";
+  cout << hash_tables[1]->size() << "\n";
 
 
- if(child==1){
-   cout << "Child 1\n";
-   children[child]->GetChunk(context, state->child_chunks[child], state->right_state.get());
-   state->child_chunks[child].Print();
- } else if(child==0){
-   cout << "Child 0\n";
-   children[child]->GetChunk(context, state->child_chunks[child], state->child_state.get());
-  // state->child_chunk.Print();
- }
-// DataChunk left_chunk;
-// left_chunk.Initialize(types);
+  do{
 
- state->join_keys.Initialize(hash_tables[child]->condition_types);
- //while (true) {
-   // get the child chunk
-  if(state->child_chunks[child].size() == 0) {
-    child=1-child;
+    cout << "Building hash table " << child << "\n";
+
     if(child==1){
       cout << "Child 1\n";
       children[child]->GetChunk(context, state->child_chunks[child], state->right_state.get());
-      state->child_chunks[child].Print();
+      //state->child_chunks[child].Print();
     } else if(child==0){
       cout << "Child 0\n";
       children[child]->GetChunk(context, state->child_chunks[child], state->child_state.get());
+      // state->child_chunks[child].Print();
     }
-    if(state->child_chunks[child].size() == 0) {
-      return;
-    }
-  }
-   // resolve the join keys for the right chunk
-   //state->lhs_executor.Execute(state->child_chunk, state->join_keys);
 
- //  if(child==0){
+    state->join_keys.Initialize(hash_tables[child]->condition_types);
+    if(state->child_chunks[child].size() == 0) {
+      child=1-child;
+      if(child==1){
+        cout << "Child 1\n";
+        children[child]->GetChunk(context, state->child_chunks[child], state->right_state.get());
+        state->child_chunks[child].Print();
+      } else if(child==0){
+        cout << "Child 0\n";
+        children[child]->GetChunk(context, state->child_chunks[child], state->child_state.get());
+      }
+      if(state->child_chunks[child].size() == 0) {
+        return;
+      }
+    }
+
+    if(child==1){
      state->rhs_executor.Execute(state->child_chunks[child], state->join_keys);
- //  } else if(child==1) {
-   //  state->rhs_executor.Execute(state->child_chunk, state->join_keys);
- //  }
+   } else {
+     state->lhs_executor.Execute(state->child_chunks[child], state->join_keys);
+   }
+
 
    // build the HT
-
    hash_tables[child]->Build(state->join_keys, state->child_chunks[child]);
 
- //  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
- //  state->child_state.get();
-   //state->child_chunk.Print();
 
- //}
-
- if (hash_tables[child]->size() == 0 &&
+   if (hash_tables[child]->size() == 0 &&
      (hash_tables[child]->join_type == JoinType::INNER || hash_tables[child]->join_type == JoinType::SEMI)) {
    // empty hash table with INNER or SEMI join means empty result set
-
-   return;
- }
-
- //cout << hash_tables[child]->size() << "\n";
- state->initialized = true;
+        return;
+    }
 
 
- /*if (state->child_chunk.size() == 0) {
-     cout << "Inside if\n";
-   //  return;
- }*/
-
-
-   // fetch the chunk from the left side
-
- //  children[child]->GetChunk(context, state->child_chunk, child_state.get());
-   //state->child_chunk.Print();
-  /* if (state->child_chunk.size() == 0) {
-     return;
-   }*/
    // remove any selection vectors
    state->child_chunks[child].Flatten();
    if (hash_tables[1-child]->size() == 0) {
@@ -191,15 +143,13 @@ for (index_t i = 0; i < chunk.column_count/2; i++) {
        return;
      }
    }
-   // resolve the join keys for the left chunk
- //  if(child==0){
-     state->rhs_executor.Execute(state->child_chunks[child], state->join_keys);
-   //  state->join_keys.Print();
- /*  } else if(child==1) {
-     cout << "child 1\n";
-     state->rhs_executor.Execute(state->child_chunk, state->join_keys);
-     state->join_keys.Print();
-   }*/
+
+   if(child==1){
+    state->rhs_executor.Execute(state->child_chunks[child], state->join_keys);
+  } else {
+    state->lhs_executor.Execute(state->child_chunks[child], state->join_keys);
+  }
+
 
    // perform the actual probe
    state->scan_structure = hash_tables[1-child]->Probe(state->join_keys);
@@ -222,153 +172,8 @@ for (index_t i = 0; i < chunk.column_count/2; i++) {
    }*/
    child=1-child;
    cout << "child: " << child << "\n";
-   chunk.Print();
 
-}while (chunk.size() == 0 );
-
-
-  /*int child=1;
-  auto state = reinterpret_cast<PhysicalHashJoinState *>(state_);
-
-  cout << "Get chunk internal\n";
-  if (state->child_chunk.size() > 0 && state->scan_structure) {
-    // still have elements remaining from the previous probe (i.e. we got
-    // >1024 elements in the previous probe)
-    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
-
-    if (chunk.size() > 0) {
-    //  return;
-    }
-    state->scan_structure = nullptr;
-  }
-
-cout << state->child_chunk.size() << "\n";
-do{
-  cout << "Get chunk interna!!!l\n";
-  auto child_state = children[child]->GetOperatorState();
-  auto types = children[child]->GetTypes();
-  if(child==1){
-    children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
-  } else if(child==0){
-    children[child]->GetChunk(context, state->child_chunk, child_state.get());
-  }
- // DataChunk left_chunk;
- // left_chunk.Initialize(types);
- cout << "Building Hash Table " << child << "\n";
-  state->join_keys.Initialize(hash_tables[child]->condition_types);
-  //while (true) {
-    // get the child chunk
-
-    if (state->child_chunk.size() == 0) {
-      return;
-    }
-    // resolve the join keys for the right chunk
-    //state->lhs_executor.Execute(state->child_chunk, state->join_keys);
-
-    if(child==0){
-      state->lhs_executor.Execute(state->child_chunk, state->join_keys);
-    } else if(child==1) {
-      state->rhs_executor.Execute(state->child_chunk, state->join_keys);
-    }
-
-    // build the HT
-
-    hash_tables[child]->Build(state->join_keys, state->child_chunk);
-
-  //  children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
-  //  state->child_state.get();
-    //state->child_chunk.Print();
-
-  //}
-
-  if (hash_tables[child]->size() == 0 &&
-      (hash_tables[child]->join_type == JoinType::INNER || hash_tables[child]->join_type == JoinType::SEMI)) {
-    // empty hash table with INNER or SEMI join means empty result set
-
-    return;
-  }
-  state->initialized = true;
-
-
-
-  if (state->child_chunk.size() == 0) {
-      return;
-  }
-
-
-
-    // fetch the chunk from the left side
-
-  //  children[child]->GetChunk(context, state->child_chunk, child_state.get());
-  /*  if (state->child_chunk.size() == 0) {
-      return;
-    }
-    // remove any selection vectors
-    state->child_chunk.Flatten();
-    if (hash_tables[1-child]->size() == 0) {
-      // empty hash table, special case
-      if (hash_tables[1-child]->join_type == JoinType::ANTI) {
-        // anti join with empty hash table, NOP join
-        // return the input
-        assert(chunk.column_count == state->child_chunk.column_count);
-        for (index_t i = 0; i < chunk.column_count; i++) {
-          chunk.data[i].Reference(state->child_chunk.data[i]);
-        }
-        return;
-      } else if (hash_tables[1-child]->join_type == JoinType::MARK) {
-
-        // MARK join with empty hash table
-        assert(hash_tables[1-child]->join_type == JoinType::MARK);
-        assert(chunk.column_count == state->child_chunk.column_count + 1);
-        auto &result_vector = chunk.data[state->child_chunk.column_count];
-        assert(result_vector.type == TypeId::BOOLEAN);
-        result_vector.count = state->child_chunk.size();
-        // for every data vector, we just reference the child chunk
-        for (index_t i = 0; i < state->child_chunk.column_count; i++) {
-          chunk.data[i].Reference(state->child_chunk.data[i]);
-        }
-        // for the MARK vector:
-        // if the HT has no NULL values (i.e. empty result set), return a vector that has false for every input
-        // entry if the HT has NULL values (i.e. result set had values, but all were NULL), return a vector that
-        // has NULL for every input entry
-        if (!hash_tables[1-child]->has_null) {
-          auto bool_result = (bool *)result_vector.data;
-          for (index_t i = 0; i < result_vector.count; i++) {
-            bool_result[i] = false;
-          }
-        } else {
-          result_vector.nullmask.set();
-        }
-        return;
-      }
-    }
-
-
-    // resolve the join keys for the left chunk
-    if(child==0){
-      state->lhs_executor.Execute(state->child_chunk, state->join_keys);
-    } else if(child==1) {
-      state->rhs_executor.Execute(state->child_chunk, state->join_keys);
-    }
-
-    // perform the actual probe
-    state->scan_structure = hash_tables[1-child]->Probe(state->join_keys);
-    cout << "Probe phase\n";
-    state->scan_structure->Next(state->join_keys, state->child_chunk, chunk);
-
-    child=1-child;
-
-    /*child_state = children[child]->GetOperatorState();
-    types = children[child]->GetTypes();
-    if(child==0){
-      children[child]->GetChunk(context, state->child_chunk, state->child_state.get());
-    } else if(child==1){
-      children[child]->GetChunk(context, state->child_chunk, child_state.get());
-    }
-
-    chunk.Print();
-
-  } while(chunk.size()==0);*/
+ }while (chunk.size() == 0 );
 
 }
 
