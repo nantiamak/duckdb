@@ -74,7 +74,7 @@ void PhysicalHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk
 	// probe the HT
 	do {
 		// fetch the chunk from the left side
-		cout << "Probe phase";
+		cout << "Probe phase\n";
 		children[0]->GetChunk(context, state->child_chunk, state->child_state.get());
 		if (state->child_chunk.size() == 0) {
 			return;

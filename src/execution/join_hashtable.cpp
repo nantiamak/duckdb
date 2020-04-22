@@ -526,7 +526,7 @@ void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &r
 	index_t result_count = ScanInnerJoin(keys, left, result);
 
 	if (result_count > 0) {
-		cout << "Matches found\n";
+		cout << "matches found: " << result_count << "\n";
 		// matches were found
 		// construct the result
 		result.sel_vector = result.owned_sel_vector;
@@ -534,7 +534,6 @@ void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &r
 
 		// reference the columns of the left side from the result
 		for (index_t i = 0; i < left.column_count; i++) {
-			cout << "First for\n";
 			result.data[i].Reference(left.data[i]);
 			result.data[i].sel_vector = result.sel_vector;
 			result.data[i].count = result_count;
@@ -543,15 +542,10 @@ void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &r
 		// apply the selection vector
 		// now fetch the right side data from the HT
 		for (index_t i = 0; i < ht.build_types.size(); i++) {
-			cout << "Second for\n";
 			auto &vector = result.data[left.column_count + i];
-			cout << "check1\n";
 			vector.sel_vector = result.sel_vector;
-			cout << "check2\n";
 			vector.count = result_count;
-			cout << "check3: " << vector.count << "\n";
 			VectorOperations::Gather::Set(build_pointer_vector, vector);
-			cout << result_count << "\n";
 			VectorOperations::AddInPlace(build_pointer_vector, GetTypeIdSize(ht.build_types[i]));
 		}
 
