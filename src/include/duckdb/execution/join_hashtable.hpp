@@ -49,10 +49,14 @@ public:
 		ScanStructure(JoinHashTable &ht);
 		//! Get the next batch of data from the scan structure
 		void Next(DataChunk &keys, DataChunk &left, DataChunk &result);
+		//! Get the next batch of data from the scan structure for symmetric hash join
+		void NextSymmetric(DataChunk &keys, DataChunk &left, int child, DataChunk &result);
 
 	private:
 		//! Next operator for the inner join
 		void NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &result);
+		//! Next operator for the inner join symmetric
+		void NextInnerJoinSymmetric(DataChunk &keys, DataChunk &left, int child, DataChunk &result);
 		//! Next operator for the semi join
 		void NextSemiJoin(DataChunk &keys, DataChunk &left, DataChunk &result);
 		//! Next operator for the anti join

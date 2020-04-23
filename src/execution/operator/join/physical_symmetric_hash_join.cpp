@@ -42,11 +42,23 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
   cout << "Count left=" << state->count_left << "\n";
   cout << "Count right=" << state->count_right << "\n";
 
+  if (state->child_chunks[1-child].size() > 0 && state->scan_structure) {
+  // still have elements remaining from the previous probe (i.e. we got
+  // >1024 elements in the previous probe)
+  cout << "Still have elements!!\n";
+    state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks[1-child], 1-child, chunk);
+
+    if (chunk.size() > 0) {
+      return;
+    }
+    state->scan_structure = nullptr;
+  }
+
   if (state->child_chunks[child].size() > 0 && state->scan_structure) {
   // still have elements remaining from the previous probe (i.e. we got
   // >1024 elements in the previous probe)
   cout << "Still have elements!!\n";
-    state->scan_structure->Next(state->join_keys, state->child_chunks[child], chunk);
+    state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks[child], child, chunk);
 
     if (chunk.size() > 0) {
       return;
@@ -62,8 +74,9 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 
   int count_left=0;
   int count_right=0;
+  int iter=0;
   do{
-
+    iter++;
     cout << "Building hash table " << child << "\n";
 
 
@@ -97,11 +110,11 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
       }
     }
 
-    //if(child==1){
+    if(child==1){
      state->rhs_executor.Execute(state->child_chunks[child], state->join_keys);
-   //} else {
-    // state->lhs_executor.Execute(state->child_chunks[child], state->join_keys);
-   //}
+   } else {
+     state->lhs_executor.Execute(state->child_chunks[child], state->join_keys);
+   }
 
 
    // build the HT
@@ -155,21 +168,21 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
      }
    }
 
-   //if(child==1){
-    //state->rhs_executor.Execute(state->child_chunks[child], state->join_keys);
-  //} else {
+   if(child==1){
+    state->rhs_executor.Execute(state->child_chunks[child], state->join_keys);
+  } else {
     state->lhs_executor.Execute(state->child_chunks[child], state->join_keys);
-  //}
+  }
 
 
    // perform the actual probe
    state->scan_structure = hash_tables[1-child]->Probe(state->join_keys);
    //cout << "Probing\n";
-   state->scan_structure->Next(state->join_keys, state->child_chunks[child], chunk);
+   state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks[child], child, chunk);
    //cout << "Probing end\n";
 
   // cout << "column count: " << hash_tables[child]->build_types.size() << "\n";
-   /*if(child==1 && chunk.size()!=0){
+  /* if(child==1 && chunk.size()!=0){
      cout << "reorganization\n";
      for (index_t i = 0; i < chunk.column_count/2; i++) {
        cout << ((state->child_chunks[child].column_count-1)-i) << "\n";
@@ -184,24 +197,38 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 
    child=1-child;
    //cout << "child: " << child << "\n";
-   //chunk.Print();
+   cout << "Chunk size " << chunk.size() << "\n";
+   chunk.Print();
 
 
 
- }while(chunk.size()==0);
+ }while(chunk.size()==0 && iter<3);
 
 
- if (state->child_chunks[child].size() > 0 && state->scan_structure){
+ /*if (state->child_chunks[child].size() > 0 && state->scan_structure){
   cout << "Still have elements\n";
  // still have elements remaining from the previous probe (i.e. we got
  // >1024 elements in the previous probe)
+   state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks, chunk);
+
+   if (chunk.size() > 0) {
+     return;
+   }
+   state->scan_structure = nullptr;
+ }*/
+
+ /*if (state->child_chunks[child].size() > 0 && state->scan_structure) {
+ // still have elements remaining from the previous probe (i.e. we got
+ // >1024 elements in the previous probe)
+ cout << "Still have elements!!\n";
    state->scan_structure->Next(state->join_keys, state->child_chunks[child], chunk);
 
    if (chunk.size() > 0) {
      return;
    }
    state->scan_structure = nullptr;
- }
+ }*/
+
 
 }
 

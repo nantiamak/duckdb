@@ -20,8 +20,11 @@ int main() {
 	con.Query("COPY partsupp FROM '../../duckdb_benchmark_data/tpch_partsupp.csv'");
 
 	//Buggy query - segmentation fault inside NextInnerJoin
-	auto result=con.Query("copy (select ps_partkey, s_suppkey from supplier, partsupp where s_suppkey=ps_suppkey order by ps_partkey) to '/Users/Nantia/Desktop/result.txt'");
+	auto result=con.Query("copy (select ps_partkey, s_name from partsupp, supplier where ps_suppkey=s_suppkey order by ps_partkey) to '/Users/Nantia/Desktop/result.txt'");
 	result->Print();
+
+	//auto result=con.Query("copy (select ps_partkey, ps_supplycost from partsupp, supplier where ps_suppkey=s_suppkey order by ps_partkey) to '/Users/Nantia/Desktop/result_hash_join.txt'");
+	//result->Print();
 
 	//Successful query
 	//auto result=con.Query("copy (select c_name, n_name from customer, nation where c_nationkey=n_nationkey) to '/Users/Nantia/Desktop/result.txt'");
