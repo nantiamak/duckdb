@@ -2,7 +2,7 @@
 
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/expression_executor.hpp"
-#include<iostream>
+
 using namespace duckdb;
 using namespace std;
 
@@ -16,7 +16,7 @@ public:
   DataChunk join_keys;
   DataChunk child_chunks[2];
   unique_ptr<JoinHashTable::ScanStructure> scan_structure;
-  unique_ptr<PhysicalOperatorState> right_state;
+  unique_ptr<PhysicalOperatorState> child_states[2];
   int count_left=0;
   int count_right=0;
 };
@@ -24,7 +24,7 @@ public:
 PhysicalSymmetricHashJoin::PhysicalSymmetricHashJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left,
                                    unique_ptr<PhysicalOperator> right, vector<JoinCondition> cond, JoinType join_type)
     : PhysicalComparisonJoin(op, PhysicalOperatorType::HASH_JOIN, move(cond), join_type) {
-  hash_table = make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
+//  hash_table = make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
   hash_tables[0]= make_unique<JoinHashTable>(conditions, left->GetTypes(), join_type);
   hash_tables[1]= make_unique<JoinHashTable>(conditions, right->GetTypes(), join_type);
 
@@ -39,13 +39,10 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 
   int child=1;
   auto state = reinterpret_cast<PhysicalSymmetricHashJoinState *>(state_);
-  cout << "Count left=" << state->count_left << "\n";
-  cout << "Count right=" << state->count_right << "\n";
 
   if (state->child_chunks[1-child].size() > 0 && state->scan_structure) {
   // still have elements remaining from the previous probe (i.e. we got
   // >1024 elements in the previous probe)
-  cout << "Still have elements!!\n";
     state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks[1-child], 1-child, chunk);
 
     if (chunk.size() > 0) {
@@ -57,7 +54,6 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
   if (state->child_chunks[child].size() > 0 && state->scan_structure) {
   // still have elements remaining from the previous probe (i.e. we got
   // >1024 elements in the previous probe)
-  cout << "Still have elements!!\n";
     state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks[child], child, chunk);
 
     if (chunk.size() > 0) {
@@ -66,45 +62,19 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
     state->scan_structure = nullptr;
   }
 
-  cout << "Get Chunk internal\n";
   state->child_chunks[0].Initialize(children[0]->GetTypes());
   state->child_chunks[1].Initialize(children[1]->GetTypes());
-  //cout << hash_tables[0]->size() << "\n";
-  //cout << hash_tables[1]->size() << "\n";
 
-  int count_left=0;
-  int count_right=0;
-  int iter=0;
+
   do{
-    iter++;
-    cout << "Building hash table " << child << "\n";
 
-
-    if(child==1){
-  //    cout << "Child 1\n";
-      children[child]->GetChunk(context, state->child_chunks[child], state->right_state.get());
-      state->count_right=state->count_right+state->child_chunks[child].size();
-    } else if(child==0){
-    //  cout << "Child 0\n";
-      children[child]->GetChunk(context, state->child_chunks[child], state->child_state.get());
-      state->count_left=state->count_left+state->child_chunks[child].size();
-    }
+    children[child]->GetChunk(context, state->child_chunks[child], state->child_states[child].get());
 
     state->join_keys.Initialize(hash_tables[child]->condition_types);
     if(state->child_chunks[child].size() == 0) {
       child=1-child;
-      cout << "Building hash table " << child << "\n";
-      if(child==1){
-      //  cout << "Child 1\n";
-        children[child]->GetChunk(context, state->child_chunks[child], state->right_state.get());
-        state->count_right=state->count_right+state->child_chunks[child].size();
-    //    cout << state->child_chunks[child].size() << "\n";
-      } else if(child==0){
-    //    cout << "Child 0\n";
-        children[child]->GetChunk(context, state->child_chunks[child], state->child_state.get());
-        state->count_left=state->count_left+state->child_chunks[child].size();
-    //    cout << state->child_chunks[child].size() << "\n";
-      }
+      children[child]->GetChunk(context, state->child_chunks[child], state->child_states[child].get());
+
       if(state->child_chunks[child].size() == 0) {
         return;
       }
@@ -177,63 +147,19 @@ void PhysicalSymmetricHashJoin::GetChunkInternal(ClientContext &context, DataChu
 
    // perform the actual probe
    state->scan_structure = hash_tables[1-child]->Probe(state->join_keys);
-   //cout << "Probing\n";
    state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks[child], child, chunk);
-   //cout << "Probing end\n";
-
-  // cout << "column count: " << hash_tables[child]->build_types.size() << "\n";
-  /* if(child==1 && chunk.size()!=0){
-     cout << "reorganization\n";
-     for (index_t i = 0; i < chunk.column_count/2; i++) {
-       cout << ((state->child_chunks[child].column_count-1)-i) << "\n";
-       DataChunk temp;
-       auto types = children[1]->GetTypes();
-       temp.Initialize(types);
-       temp.data[i].data = chunk.data[i].data;
-       chunk.data[i].Reference(chunk.data[((chunk.column_count/2)+i)]);
-       chunk.data[((chunk.column_count/2)+i)].data=temp.data[i].data;
-     }
-   }*/
 
    child=1-child;
-   //cout << "child: " << child << "\n";
-   cout << "Chunk size " << chunk.size() << "\n";
-   chunk.Print();
 
 
-
- }while(chunk.size()==0 && iter<3);
-
-
- /*if (state->child_chunks[child].size() > 0 && state->scan_structure){
-  cout << "Still have elements\n";
- // still have elements remaining from the previous probe (i.e. we got
- // >1024 elements in the previous probe)
-   state->scan_structure->NextSymmetric(state->join_keys, state->child_chunks, chunk);
-
-   if (chunk.size() > 0) {
-     return;
-   }
-   state->scan_structure = nullptr;
- }*/
-
- /*if (state->child_chunks[child].size() > 0 && state->scan_structure) {
- // still have elements remaining from the previous probe (i.e. we got
- // >1024 elements in the previous probe)
- cout << "Still have elements!!\n";
-   state->scan_structure->Next(state->join_keys, state->child_chunks[child], chunk);
-
-   if (chunk.size() > 0) {
-     return;
-   }
-   state->scan_structure = nullptr;
- }*/
+ }while(chunk.size()==0);
 
 
 }
 
 unique_ptr<PhysicalOperatorState> PhysicalSymmetricHashJoin::GetOperatorState() {
   auto state = make_unique<PhysicalSymmetricHashJoinState>(children[0].get(), children[1].get(), conditions);
-  state->right_state=children[1]->GetOperatorState();
+  state->child_states[0]=children[0]->GetOperatorState();
+  state->child_states[1]=children[1]->GetOperatorState();
   return(move(state));
 }

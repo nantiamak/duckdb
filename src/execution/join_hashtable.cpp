@@ -4,7 +4,6 @@
 #include "duckdb/common/types/null_value.hpp"
 #include "duckdb/common/types/static_vector.hpp"
 #include "duckdb/common/vector_operations/vector_operations.hpp"
-#include<iostream>
 
 using namespace duckdb;
 using namespace std;
@@ -542,7 +541,6 @@ void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &r
 	index_t result_count = ScanInnerJoin(keys, left, result);
 
 	if (result_count > 0) {
-		cout << "matches found: " << result_count << "\n";
 		// matches were found
 		// construct the result
 		result.sel_vector = result.owned_sel_vector;
@@ -553,7 +551,6 @@ void ScanStructure::NextInnerJoin(DataChunk &keys, DataChunk &left, DataChunk &r
 			result.data[i].Reference(left.data[i]);
 			result.data[i].sel_vector = result.sel_vector;
 			result.data[i].count = result_count;
-			cout << result.data[i].count << "\n";
 		}
 
 		// apply the selection vector
@@ -579,21 +576,17 @@ void ScanStructure::NextInnerJoinSymmetric(DataChunk &keys, DataChunk &left, int
 	index_t result_count = ScanInnerJoin(keys, left, result);
 
 	if (result_count > 0) {
-		cout << "matches found: " << result_count << "\n";
 		// matches were found
 		// construct the result
-		cout << result.owned_sel_vector << "\n";
 		result.sel_vector = result.owned_sel_vector;
 		build_pointer_vector.count = result_count;
 		if(child==0){
-			cout << "First child\n";
 			// reference the columns of the left side from the result
 			for (index_t i = 0; i < left.column_count; i++) {
 				result.data[i].Reference(left.data[i]);
 				result.data[i].sel_vector = result.sel_vector;
 				//result.data[i].Print();
 				result.data[i].count = result_count;
-				cout << result.data[i].count << "\n";
 			}
 
 			// apply the selection vector
@@ -607,7 +600,6 @@ void ScanStructure::NextInnerJoinSymmetric(DataChunk &keys, DataChunk &left, int
 				VectorOperations::AddInPlace(build_pointer_vector, GetTypeIdSize(ht.build_types[i]));
 			}
 		} else if(child==1){
-			cout << "Second child\n";
 
 			for (index_t i = 0; i < ht.build_types.size(); i++) {
 				auto &vector = result.data[i];
@@ -615,7 +607,6 @@ void ScanStructure::NextInnerJoinSymmetric(DataChunk &keys, DataChunk &left, int
 				vector.sel_vector = result.sel_vector;
 				vector.count = result_count;
 				VectorOperations::Gather::Set(build_pointer_vector, vector);
-				cout << "HT side: " << TypeIdToString(ht.build_types[i]) << "\n";
 				VectorOperations::AddInPlace(build_pointer_vector, GetTypeIdSize(ht.build_types[i]));
 			}
 

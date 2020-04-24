@@ -22,7 +22,7 @@ public:
 	PhysicalSymmetricHashJoin(LogicalOperator &op, unique_ptr<PhysicalOperator> left, unique_ptr<PhysicalOperator> right,
 	                 vector<JoinCondition> cond, JoinType join_type);
 
-	unique_ptr<JoinHashTable> hash_table;
+//	unique_ptr<JoinHashTable> hash_table;
 	unique_ptr<JoinHashTable> hash_tables[2];
 
 public:

@@ -2,7 +2,6 @@
 
 #include "duckdb/common/vector_operations/vector_operations.hpp"
 #include "duckdb/execution/expression_executor.hpp"
-#include<iostream>
 
 using namespace duckdb;
 using namespace std;
@@ -29,7 +28,7 @@ PhysicalHashJoin::PhysicalHashJoin(LogicalOperator &op, unique_ptr<PhysicalOpera
 
 void PhysicalHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk, PhysicalOperatorState *state_) {
 	auto state = reinterpret_cast<PhysicalHashJoinState *>(state_);
-	cout << "Chunk internal\n";
+
 	if (!state->initialized) {
 		// build the HT
 		auto right_state = children[1]->GetOperatorState();
@@ -60,7 +59,7 @@ void PhysicalHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk
 
 		state->initialized = true;
 	}
-	cout << "Hashtable size " << hash_table->size() << "\n";
+
 	if (state->child_chunk.size() > 0 && state->scan_structure) {
 		// still have elements remaining from the previous probe (i.e. we got
 		// >1024 elements in the previous probe)
@@ -74,7 +73,6 @@ void PhysicalHashJoin::GetChunkInternal(ClientContext &context, DataChunk &chunk
 	// probe the HT
 	do {
 		// fetch the chunk from the left side
-		cout << "Probe phase\n";
 		children[0]->GetChunk(context, state->child_chunk, state->child_state.get());
 		if (state->child_chunk.size() == 0) {
 			return;

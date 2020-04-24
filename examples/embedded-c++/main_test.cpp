@@ -8,8 +8,8 @@ int main() {
 
 	con.Query("CREATE TABLE nation(n_nationkey INTEGER, n_name VARCHAR, n_regionkey INTEGER, n_comment VARCHAR)");
 	con.Query("CREATE TABLE customer(c_custkey INTEGER, c_name VARCHAR, c_address VARCHAR, c_nationkey INTEGER, c_phone VARCHAR, c_acctbal DOUBLE, c_mktsegment VARCHAR, c_comment VARCHAR)");
-	//con.Query("CREATE TABLE orders(o_orderkey INTEGER, o_custkey INTEGER, o_orderstatus VARCHAR, o_totalprice DOUBLE, o_orderdate DATE, o_orderpriority VARCHAR, o_clerk VARCHAR, o_shippriority INTEGER, o_comment VARCHAR)");
-	//con.Query("COPY orders FROM '../../duckdb_benchmark_data/tpch_orders.csv'");
+	con.Query("CREATE TABLE orders(o_orderkey INTEGER, o_custkey INTEGER, o_orderstatus VARCHAR, o_totalprice DOUBLE, o_orderdate DATE, o_orderpriority VARCHAR, o_clerk VARCHAR, o_shippriority INTEGER, o_comment VARCHAR)");
+	con.Query("COPY orders FROM '../../duckdb_benchmark_data/tpch_orders.csv'");
 	con.Query("COPY customer FROM '../../duckdb_benchmark_data/tpch_customer.csv'");
 	con.Query("COPY nation FROM '../../duckdb_benchmark_data/tpch_nation.csv'");
 	//con.Query("CREATE TABLE lineitem(l_orderkey INTEGER, l_partkey INTEGER, l_suppkey INTEGER, l_linenumber INTEGER, l_quantity INTEGER, l_extendedprice DOUBLE, l_discount DOUBLE, l_tax DOUBLE, l_returnflag VARCHAR, l_linestatus VARCHAR, l_shipdate DATE, l_commitdate DATE, l_receiptdate DATE, l_shipinstruct VARCHAR, l_shipmode VARCHAR, l_comment VARCHAR)");
@@ -20,8 +20,11 @@ int main() {
 	con.Query("COPY partsupp FROM '../../duckdb_benchmark_data/tpch_partsupp.csv'");
 
 	//Buggy query - segmentation fault inside NextInnerJoin
-	auto result=con.Query("copy (select ps_partkey, s_name from partsupp, supplier where ps_suppkey=s_suppkey order by ps_partkey) to '/Users/Nantia/Desktop/result.txt'");
+	auto result=con.Query("copy (select c_name, o_orderkey from customer, orders where c_custkey=o_custkey order by c_name) to '/Users/Nantia/Desktop/result.txt'");
 	result->Print();
+
+//	auto result=con.Query("copy (select c_name, o_orderkey from customer, orders where c_custkey=o_custkey order by c_name) to '/Users/Nantia/Desktop/result_hash_join.txt'");
+//	result->Print();
 
 	//auto result=con.Query("copy (select ps_partkey, ps_supplycost from partsupp, supplier where ps_suppkey=s_suppkey order by ps_partkey) to '/Users/Nantia/Desktop/result_hash_join.txt'");
 	//result->Print();
