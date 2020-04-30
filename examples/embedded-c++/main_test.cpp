@@ -1,6 +1,10 @@
 #include "duckdb.hpp"
+#include<iostream>
+#include <chrono>
+#include <thread>
 
 using namespace duckdb;
+using namespace std;
 
 int main() {
 	DuckDB db(nullptr);
@@ -19,9 +23,47 @@ int main() {
 	con.Query("CREATE TABLE partsupp(ps_partkey INTEGER, ps_suppkey INTEGER, ps_availqty INTEGER, ps_supplycost DOUBLE, ps_comment VARCHAR)");
 	con.Query("COPY partsupp FROM '../../duckdb_benchmark_data/tpch_partsupp.csv'");
 
-	//Buggy query - segmentation fault inside NextInnerJoin
-	auto result=con.Query("copy (select c_name, o_orderkey from customer, orders where c_custkey=o_custkey order by c_name) to '/Users/Nantia/Desktop/result.txt'");
-	result->Print();
+	auto t1 = chrono::high_resolution_clock::now();
+	auto stream_result=con.SendQuery("select c_name, o_orderkey from customer, orders where c_custkey=o_custkey;");
+
+
+//	stream_result->Fetch()->Print();
+	//stream_result = move(stream_result->next->Fetch());
+	//stream_result->Print();
+//	stream_result->Fetch()->Print();
+//	stream_result = move(stream_result->next);
+	int result_size=0;
+	while(true){
+		auto chunk = stream_result->Fetch();
+		cout << "Fetch\n";
+		if(chunk->size() == 0){
+			break;
+		}
+	//	chunk->Print();
+		auto t2 = chrono::high_resolution_clock::now();
+		result_size+=chunk->size();
+		auto duration = chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+
+    cout << duration << "\n";
+		cout << "Result size: " << result_size << "\n";
+	//	this_thread::sleep_for(std::chrono::milliseconds(2000));
+	//	auto t1 = chrono::high_resolution_clock::now();
+	}
+	cout << result_size;
+
+	//auto chunk = stream_result->Fetch();
+	//chunk->Print();
+/*	auto next = move(stream_result->next);
+	next->Print();
+	while (next) {
+		cout << "Next!\n";
+		auto chunk = next->Fetch();
+		chunk->Print();
+		auto nextnext = move(next->next);
+	//	VerifyStreamResult(move(nextnext));
+		next = move(nextnext);
+	}*/
+
 
 //	auto result=con.Query("copy (select c_name, o_orderkey from customer, orders where c_custkey=o_custkey order by c_name) to '/Users/Nantia/Desktop/result_hash_join.txt'");
 //	result->Print();
