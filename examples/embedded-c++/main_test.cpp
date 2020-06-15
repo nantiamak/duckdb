@@ -2,6 +2,7 @@
 #include<iostream>
 #include <chrono>
 #include <thread>
+#include <fstream>
 
 using namespace duckdb;
 using namespace std;
@@ -25,6 +26,7 @@ int main() {
 
 	auto t1 = chrono::high_resolution_clock::now();
 	auto stream_result=con.SendQuery("select c_name, o_orderkey from customer, orders where c_custkey=o_custkey;");
+	//stream_result->Print();
 
 
 //	stream_result->Fetch()->Print();
@@ -33,6 +35,10 @@ int main() {
 //	stream_result->Fetch()->Print();
 //	stream_result = move(stream_result->next);
 	int result_size=0;
+	ofstream result_file;
+  result_file.open ("/Users/Nantia/Desktop/result.csv");
+  result_file << "Writing this to a file.\n";
+
 	while(true){
 		auto chunk = stream_result->Fetch();
 		cout << "Fetch\n";
@@ -44,12 +50,12 @@ int main() {
 		result_size+=chunk->size();
 		auto duration = chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-    cout << duration << "\n";
-		cout << "Result size: " << result_size << "\n";
+    result_file << duration << "|" << result_size << "\n";
 	//	this_thread::sleep_for(std::chrono::milliseconds(2000));
 	//	auto t1 = chrono::high_resolution_clock::now();
 	}
 	cout << result_size;
+	result_file.close();
 
 	//auto chunk = stream_result->Fetch();
 	//chunk->Print();
