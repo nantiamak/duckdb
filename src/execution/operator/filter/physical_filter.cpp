@@ -47,6 +47,8 @@ void PhysicalFilter::GetChunkInternal(ClientContext &context, DataChunk &chunk, 
 				chunk.data[i].sel_vector = chunk.owned_sel_vector;
 			}
 			chunk.sel_vector = chunk.owned_sel_vector;
+
+
 			return;
 		}
 	}
