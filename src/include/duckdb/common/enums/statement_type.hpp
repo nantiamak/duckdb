@@ -34,7 +34,8 @@ enum class StatementType : uint8_t {
 	DROP_STATEMENT,         // DROP statement type
 	PRAGMA_STATEMENT,       // PRAGMA statement type
 	VACUUM_STATEMENT,       // VACUUM statement type
-	RELATION_STATEMENT
+	RELATION_STATEMENT,
+	SHOW_STATEMENT 					// SHOW statement type
 };
 
 string StatementTypeToString(StatementType type);

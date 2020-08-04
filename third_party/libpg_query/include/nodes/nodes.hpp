@@ -346,6 +346,7 @@ typedef enum PGNodeTag
 	T_PGAlterSeqStmt,
 	T_PGVariableSetStmt,
 	T_PGVariableShowStmt,
+	T_PGVariableShowStmtSelect,
 	T_PGDiscardStmt,
 	T_PGCreateTrigStmt,
 	T_PGCreatePLangStmt,
@@ -804,4 +805,3 @@ typedef enum PGOnConflictAction
 	PG_ONCONFLICT_NOTHING,			/* ON CONFLICT ... DO NOTHING */
 	PG_ONCONFLICT_UPDATE			/* ON CONFLICT ... DO UPDATE */
 } PGOnConflictAction;
-

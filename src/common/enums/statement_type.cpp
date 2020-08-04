@@ -42,6 +42,8 @@ string StatementTypeToString(StatementType type) {
 		return "VACUUM";
 	case StatementType::RELATION_STATEMENT:
 		return "RELATION";
+	case StatementType::SHOW_STATEMENT:
+		return "SHOW";
 	default:
 		return "INVALID";
 	}
