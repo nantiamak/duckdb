@@ -13,6 +13,8 @@
 #include "duckdb/planner/pragma_handler.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
 
+#include <iostream>
+
 using namespace duckdb;
 using namespace std;
 
@@ -91,6 +93,9 @@ void Planner::CreatePlan(unique_ptr<SQLStatement> statement) {
 			CreatePlan(stmt);
 		}
 		break;
+	}
+	case StatementType::SHOW_STATEMENT: {
+		cout << "Case SHOW_STATEMENT\n";
 	}
 	case StatementType::PREPARE_STATEMENT: {
 		auto &stmt = *reinterpret_cast<PrepareStatement *>(statement.get());
