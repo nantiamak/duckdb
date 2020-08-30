@@ -12,6 +12,7 @@
 #include "duckdb/planner/query_node/bound_set_operation_node.hpp"
 #include "duckdb/planner/pragma_handler.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
+#include "duckdb/parser/statement/show_statement.hpp"
 
 #include <iostream>
 
@@ -96,6 +97,9 @@ void Planner::CreatePlan(unique_ptr<SQLStatement> statement) {
 	}
 	case StatementType::SHOW_STATEMENT: {
 		cout << "Case SHOW_STATEMENT in planner\n";
+		auto &stmt = *reinterpret_cast<ShowStatement *>(statement.get());
+		CreatePlan(move(stmt.selectStatement));
+		break;
 	}
 	case StatementType::PREPARE_STATEMENT: {
 		auto &stmt = *reinterpret_cast<PrepareStatement *>(statement.get());
