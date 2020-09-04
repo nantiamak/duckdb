@@ -89,8 +89,10 @@ void Planner::CreatePlan(unique_ptr<SQLStatement> statement) {
 		// use the PragmaHandler to get the (potential) replacement SQL statement
 		auto new_stmt = handler.HandlePragma(*stmt.info);
 		if (new_stmt) {
+			cout << "replacement SQL statement pragma case\n";
 			CreatePlan(move(new_stmt));
 		} else {
+			cout << "Default pragma case\n";
 			CreatePlan(stmt);
 		}
 		break;

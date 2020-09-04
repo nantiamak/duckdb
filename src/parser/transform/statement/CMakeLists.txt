@@ -17,6 +17,7 @@ add_library_unity(duckdb_transformer_statement
                   transform_select_node.cpp
                   transform_prepare.cpp
                   transform_show.cpp
+                  transform_show_select.cpp
                   transform_transaction.cpp
                   transform_update.cpp
                   transform_create_sequence.cpp
