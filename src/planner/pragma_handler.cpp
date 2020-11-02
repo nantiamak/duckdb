@@ -12,6 +12,8 @@
 
 #include "duckdb/common/string_util.hpp"
 
+#include <iostream>
+
 using namespace duckdb;
 using namespace std;
 
@@ -19,8 +21,11 @@ PragmaHandler::PragmaHandler(ClientContext &context) : context(context) {
 }
 
 unique_ptr<SQLStatement> PragmaHandler::HandlePragma(PragmaInfo &pragma) {
+	cout << "Inside handle pragma\n";
+	cout.flush();
 	string keyword = StringUtil::Lower(pragma.name);
 	if (keyword == "table_info") {
+		cout << "Table info pragma handler\n";
 		if (pragma.pragma_type != PragmaType::CALL) {
 			throw ParserException("Invalid PRAGMA table_info: expected table name");
 		}
@@ -41,6 +46,7 @@ unique_ptr<SQLStatement> PragmaHandler::HandlePragma(PragmaInfo &pragma) {
 		function.children.push_back(make_unique<ConstantExpression>(SQLTypeId::VARCHAR, pragma.parameters[0]));
 		return select_statement;
 	} else if (keyword == "show_tables") {
+		cout << "Show tables keyword pragma handler\n";
 		if (pragma.pragma_type != PragmaType::NOTHING) {
 			throw ParserException("Invalid PRAGMA show_tables: cannot be called");
 		}
@@ -57,6 +63,7 @@ unique_ptr<SQLStatement> PragmaHandler::HandlePragma(PragmaInfo &pragma) {
 		parser.ParseQuery("SELECT * FROM pragma_collations() ORDER BY 1");
 		return move(parser.statements[0]);
 	} else if (keyword == "show") {
+		cout << "Show keyword pragma handler\n";
 		if (pragma.pragma_type != PragmaType::CALL) {
 			throw ParserException("Invalid PRAGMA show_tables: expected a function call");
 		}
