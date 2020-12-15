@@ -24,8 +24,8 @@ struct SQLiteMaster {
 	static void RegisterFunction(BuiltinFunctions &set);
 };
 
-struct ShowSelectTableInfo {
+/*struct ShowSelectTableInfo {
 	static void RegisterFunction(BuiltinFunctions &set);
-};
+};*/
 
 } // namespace duckdb

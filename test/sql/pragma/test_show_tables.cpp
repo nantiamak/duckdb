@@ -52,5 +52,6 @@ TEST_CASE("Test SHOW/DESCRIBE tables", "[pragma]") {
 	REQUIRE(CHECK_COLUMN(result, 5, {Value()}));*/
 
 	result = con.Query("SHOW SELECT * FROM integers");
-	//result->Print();
+	//result = con.Query("DESCRIBE integers;");
+	result->Print();
 }
