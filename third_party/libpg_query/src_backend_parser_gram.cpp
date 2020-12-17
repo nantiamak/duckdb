@@ -21523,7 +21523,7 @@ yyreduce:
   case 1094:
 #line 3 "third_party/libpg_query/grammar/statements/variable_show.y"
     {
-				PGVariableShowStmtSelect *n = makeNode(PGVariableShowStmtSelect);
+				PGVariableShowSelectStmt *n = makeNode(PGVariableShowSelectStmt);
 				n->stmt = (yyvsp[(2) - (2)].node);
 				n->name="select";
 				(yyval.node) = (PGNode *) n;

@@ -5,6 +5,9 @@
 #include "duckdb/main/client_context.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 
+//Why is this include needed here?
+#include "duckdb/planner/operator/logical_show.hpp"
+
 using namespace duckdb;
 using namespace std;
 
@@ -110,6 +113,8 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalOperator &
 		return CreatePlan((LogicalCreateIndex &)op);
 	case LogicalOperatorType::EXPLAIN:
 		return CreatePlan((LogicalExplain &)op);
+	case LogicalOperatorType::SHOW:
+		return CreatePlan((LogicalShow &)op);
 	case LogicalOperatorType::DISTINCT:
 		return CreatePlan((LogicalDistinct &)op);
 	case LogicalOperatorType::PREPARE:

@@ -52,6 +52,8 @@ BoundStatement Binder::Bind(SQLStatement &statement) {
 		return Bind((ExplainStatement &)statement);
 	case StatementType::VACUUM_STATEMENT:
 		return Bind((VacuumStatement &)statement);
+  case StatementType::SHOW_STATEMENT:
+  	return Bind((ShowStatement &)statement);
 	default:
 		throw NotImplementedException("Unimplemented statement type \"%s\" for Bind",
 		                              StatementTypeToString(statement.type).c_str());

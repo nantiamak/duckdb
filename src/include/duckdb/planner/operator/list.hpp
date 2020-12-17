@@ -34,3 +34,4 @@
 #include "duckdb/planner/operator/logical_unnest.hpp"
 #include "duckdb/planner/operator/logical_update.hpp"
 #include "duckdb/planner/operator/logical_window.hpp"
+#include "duckdb/planner/operator/logical_show.hpp"

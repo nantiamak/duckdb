@@ -10,6 +10,7 @@ add_library_unity(duckdb_bind_statement
                   bind_insert.cpp
                   bind_relation.cpp
                   bind_select.cpp
+                  bind_show.cpp
                   bind_simple.cpp
                   bind_update.cpp
                   bind_vacuum.cpp)
