@@ -14,6 +14,9 @@
 #include "duckdb/planner/logical_tokens.hpp"
 #include "duckdb/common/types/chunk_collection.hpp"
 
+//Why is this include needed here?
+#include "duckdb/planner/operator/logical_show.hpp"
+
 namespace duckdb {
 class ClientContext;
 
@@ -62,6 +65,7 @@ protected:
 	unique_ptr<PhysicalOperator> CreatePlan(LogicalCopyFromFile &op);
 	unique_ptr<PhysicalOperator> CreatePlan(LogicalCopyToFile &op);
 	unique_ptr<PhysicalOperator> CreatePlan(LogicalExplain &op);
+	unique_ptr<PhysicalOperator> CreatePlan(LogicalShow &op);
 	unique_ptr<PhysicalOperator> CreatePlan(LogicalSetOperation &op);
 	unique_ptr<PhysicalOperator> CreatePlan(LogicalUpdate &op);
 	unique_ptr<PhysicalOperator> CreatePlan(LogicalTableFunction &expr);

@@ -26,6 +26,7 @@ add_library_unity(duckdb_physical_plan
                   plan_prepare.cpp
                   plan_projection.cpp
                   plan_set_operation.cpp
+                  plan_showSelect.cpp
                   plan_simple.cpp
                   plan_table_function.cpp
                   plan_top_n.cpp

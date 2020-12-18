@@ -25,6 +25,8 @@
 #include "duckdb/planner/expression_binder/where_binder.hpp"
 #include "duckdb/parser/statement/relation_statement.hpp"
 
+#include <iostream>
+
 using namespace std;
 
 namespace duckdb {
@@ -212,6 +214,8 @@ unique_ptr<QueryResult> ClientContext::ExecutePreparedStatement(const string &qu
 	executor.Initialize(move(statement.plan));
 
 	auto types = executor.GetTypes();
+  cout << "SQL type: " << statement.sql_types.size() << "\n";
+  cout << "type: " << types.size() << "\n";
 	assert(types.size() == statement.sql_types.size());
 
 	if (create_stream_result) {
