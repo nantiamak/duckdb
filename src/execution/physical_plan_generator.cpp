@@ -8,6 +8,8 @@
 //Why is this include needed here?
 #include "duckdb/planner/operator/logical_show.hpp"
 
+#include <iostream>
+
 using namespace duckdb;
 using namespace std;
 
@@ -50,6 +52,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(unique_ptr<Logica
 
 	// then create the main physical plan
 	context.profiler.StartPhase("create_plan");
+	cout << "create plan!!!\n";
 	auto plan = CreatePlan(*op);
 	context.profiler.EndPhase();
 	return plan;

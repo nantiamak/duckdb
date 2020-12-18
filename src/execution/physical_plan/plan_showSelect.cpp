@@ -7,6 +7,9 @@ using namespace std;
 
 unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalShow &op) {
 
+  DataChunk output;
+  vector<TypeId> output_types(6, TypeId::VARCHAR);
+  output.Initialize(output_types);
   idx_t offset = 0;
 	if (offset >= op.types_select.size()) {
 		// finished returning values
@@ -26,7 +29,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalShow &op) 
 
 		output.SetValue(0, index, Value::INTEGER((int32_t)index));
 		// "name", TypeId::VARCHAR
-		//output.SetValue(1, index, Value(name));
+		output.SetValue(1, index, Value(name));
 		// "type", TypeId::VARCHAR
 		output.SetValue(2, index, Value(SQLTypeToString(type)));
 		// "notnull", TypeId::BOOL
@@ -40,7 +43,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalShow &op) 
 
   auto collection = make_unique<ChunkCollection>();
 
-  collection->Append(chunk);
+  collection->Append(output);
 
 	// create a chunk scan to output the result
 	auto chunk_scan = make_unique<PhysicalChunkScan>(op.types, PhysicalOperatorType::CHUNK_SCAN);
