@@ -23,7 +23,7 @@ BoundStatement Binder::Bind(ShowStatement &stmt) {
 	result.plan = move(show);
   //show_select_info_schema(*stmt.info, output);
   //auto new_stmt = handler.HandleShowSelect(*stmt.info);
-  result.names = {"explain_key", "explain_value"};
-	result.types = {SQLType::VARCHAR, SQLType::VARCHAR};
+  result.names = {"column_name", "column_type", "notnull", "dflt_value", "pk"};
+	result.types = {SQLType::VARCHAR, SQLType::VARCHAR, SQLType::BOOLEAN, SQLType::VARCHAR, SQLType::BOOLEAN};
 	return result;
 }

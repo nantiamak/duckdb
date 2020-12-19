@@ -12,7 +12,7 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalShow &op) 
 
   cout << "Inside plan show\n";
   DataChunk output;
-  vector<TypeId> output_types(6, TypeId::VARCHAR);
+  vector<TypeId> output_types(5, TypeId::VARCHAR);
   output.Initialize(output_types);
   idx_t offset = 0;
   cout << "Types size: " << op.types_select.size() << "\n";
@@ -25,24 +25,25 @@ unique_ptr<PhysicalOperator> PhysicalPlanGenerator::CreatePlan(LogicalShow &op) 
 	idx_t next = min(offset + STANDARD_VECTOR_SIZE, (idx_t)op.types_select.size());
 	output.SetCardinality(next - offset);
 
-	for (idx_t i = offset; i < next; i++) {
+	for (idx_t i = 0; i < op.types_select.size(); i++) {
 		auto index = i - offset;
-		auto type = op.types_select[index];
-		auto &name = op.aliases[index];
+		auto type = op.types_select[i];
+		auto &name = op.aliases[i];
 		// return values:
 		// "cid", TypeId::INT32
 
-		output.SetValue(0, index, Value::INTEGER((int32_t)index));
+    cout << "ID: " << i << endl;
+		//output.SetValue(0, index, Value::INTEGER(i));
 		// "name", TypeId::VARCHAR
-		output.SetValue(1, index, Value(name));
+		output.SetValue(0, index, Value(name));
 		// "type", TypeId::VARCHAR
-		output.SetValue(2, index, Value(SQLTypeToString(type)));
+		output.SetValue(1, index, Value(SQLTypeToString(type)));
 		// "notnull", TypeId::BOOL
-		output.SetValue(3, index, Value::BOOLEAN(false));
+		output.SetValue(2, index, Value::BOOLEAN(false));
 		// "dflt_value", TypeId::VARCHAR
-		output.SetValue(4, index, Value());
+		output.SetValue(3, index, Value());
 		// "pk", TypeId::BOOL
-		output.SetValue(5, index, Value::BOOLEAN(false));
+		output.SetValue(4, index, Value::BOOLEAN(false));
 	}
 	offset = next;
 
