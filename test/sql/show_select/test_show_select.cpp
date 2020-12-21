@@ -4,7 +4,7 @@
 using namespace duckdb;
 using namespace std;
 
-TEST_CASE("Test SHOW/DESCRIBE tables", "[pragma]") {
+TEST_CASE("Test SHOW SELECT query", "[show_select]") {
 	unique_ptr<QueryResult> result;
 	DuckDB db(nullptr);
 	Connection con(db);
@@ -17,13 +17,29 @@ TEST_CASE("Test SHOW/DESCRIBE tables", "[pragma]") {
 	REQUIRE_NO_FAIL(con.Query("INSERT INTO integers2 VALUES (1, 30, 'a'), (8, 12, 'b'), (3, 24, 'c'), (9, 16, 'c'), (10, NULL, 'e')"));
 
 	// SHOW and DESCRIBE are aliases
-/*	result = con.Query("SHOW TABLES");
-	REQUIRE(CHECK_COLUMN(result, 0, {"integers", "v1"}));
-	result = con.Query("DESCRIBE TABLES");
-	REQUIRE(CHECK_COLUMN(result, 0, {"integers", "v1"}));
-	// internally they are equivalent to PRAGMA SHOW_TABLES();
-	result = con.Query("PRAGMA show_tables");
-	REQUIRE(CHECK_COLUMN(result, 0, {"integers", "v1"})); */
+	result = con.Query("SHOW SELECT * FROM integers");
+  result->Print();
+  REQUIRE(CHECK_COLUMN(result, 0, {"i", "j"}));
+  REQUIRE(CHECK_COLUMN(result, 1, {"INTEGER", "INTEGER"}));
+  REQUIRE(CHECK_COLUMN(result, 2, {Value::BOOLEAN(false), Value::BOOLEAN(false)}));
+  REQUIRE(CHECK_COLUMN(result, 3, {Value(), Value()}));
+  REQUIRE(CHECK_COLUMN(result, 4, {Value::BOOLEAN(false), Value::BOOLEAN(false)}));
+
+  result = con.Query("SHOW SELECT i FROM integers");
+  result->Print();
+  REQUIRE(CHECK_COLUMN(result, 0, {"i"}));
+  REQUIRE(CHECK_COLUMN(result, 1, {"INTEGER"}));
+  REQUIRE(CHECK_COLUMN(result, 2, {Value::BOOLEAN(false)}));
+  REQUIRE(CHECK_COLUMN(result, 3, {Value()}));
+  REQUIRE(CHECK_COLUMN(result, 4, {Value::BOOLEAN(false)}));
+
+  result = con.Query("SHOW SELECT integers.i, integers2.st FROM integers, integers2 WHERE integers.i=integers2.i");
+  result->Print();
+  REQUIRE(CHECK_COLUMN(result, 0, {"i", "st"}));
+  REQUIRE(CHECK_COLUMN(result, 1, {"INTEGER", "VARCHAR"}));
+  REQUIRE(CHECK_COLUMN(result, 2, {Value::BOOLEAN(false), Value::BOOLEAN(false)}));
+  REQUIRE(CHECK_COLUMN(result, 3, {Value(), Value()}));
+  REQUIRE(CHECK_COLUMN(result, 4, {Value::BOOLEAN(false), Value::BOOLEAN(false)}));
 
 	/*result = con.Query("SHOW integers");
 	// Field | Type | Null | Key | Default | Extra
@@ -54,6 +70,6 @@ TEST_CASE("Test SHOW/DESCRIBE tables", "[pragma]") {
 	REQUIRE(CHECK_COLUMN(result, 5, {Value()}));*/
 
 	//result = con.Query("SHOW SELECT integers.i, integers2.st FROM integers, integers2 WHERE integers.i=integers2.i");
-	result = con.Query("DESCRIBE integers;");
-	result->Print();
+	//result = con.Query("DESCRIBE integers;");
+
 }
